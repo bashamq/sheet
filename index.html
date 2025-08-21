@@ -89,7 +89,7 @@
 <body>
     <div id="dashboard">
         <h1>Compressor Dashboard</h1>
-        <p>View and download data from Google Sheet (ID: 1fX9tLZg0IcLCzE0_mshodYJMAINiDdC0sXiUmo8Hr6U). Ensure the sheet is publicly accessible.</p>
+        <p>View and download data from Google Sheet via Apps Script (ID: AKfycbyejsErrNdce7tbi5K0da24BEjD1YJW1ciaIovDqdpOqNdBDFDlNUD91dArsF_AN0pY).</p>
         <button onclick="openModal()">View History</button>
     </div>
 
@@ -113,7 +113,7 @@
     </div>
 
     <script>
-        const spreadsheetId = '1fX9tLZg0IcLCzE0_mshodYJMAINiDdC0sXiUmo8Hr6U';
+        const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbyejsErrNdce7tbi5K0da24BEjD1YJW1ciaIovDqdpOqNdBDFDlNUD91dArsF_AN0pY/exec';
 
         function openModal() {
             document.getElementById('historyModal').style.display = 'block';
@@ -126,18 +126,17 @@
             if (window.myChart) window.myChart.destroy();
         }
 
-        async function fetchSheetData(sheetName) {
+        async function fetchSheetData(sheetName, start, end) {
             try {
-                const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+                let url = `${appsScriptUrl}?sheetName=${encodeURIComponent(sheetName)}`;
+                if (start) url += `&start=${encodeURIComponent(start.toISOString())}`;
+                if (end) url += `&end=${encodeURIComponent(end.toISOString())}`;
                 const response = await fetch(url);
                 if (!response.ok) {
-                    throw new Error(`Failed to fetch data: HTTP ${response.status}. Ensure the Google Sheet is set to "Anyone with the link" as Viewer and the sheet name is correct.`);
+                    throw new Error(`Failed to fetch data: HTTP ${response.status}. Ensure the Apps Script is deployed and accessible.`);
                 }
-                const text = await response.text();
-                const json = JSON.parse(text.substring(47, text.length - 2));
-                const rows = json.table.rows;
-                const data = rows.map(row => row.c.map(cell => cell ? (cell.f || cell.v) : null));
-                if (data.length <= 1) {
+                const data = await response.json();
+                if (!data || !Array.isArray(data) || data.length <= 1) {
                     throw new Error('No data found in the sheet or sheet is empty.');
                 }
                 return data;
@@ -171,7 +170,7 @@
             }
 
             document.getElementById('error').innerText = 'Fetching data...';
-            const data = await fetchSheetData(sheetName);
+            const data = await fetchSheetData(sheetName, start, end);
             if (data.length === 0) return;
 
             const headers = data[0];
@@ -235,7 +234,7 @@
             }
 
             document.getElementById('error').innerText = 'Preparing download...';
-            const data = await fetchSheetData(sheetName);
+            const data = await fetchSheetData(sheetName, start, end);
             if (data.length === 0) return;
 
             const filteredData = filterDataByDate(data.slice(1), start, end);
