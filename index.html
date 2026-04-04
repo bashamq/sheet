@@ -1,262 +1,255 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compressor Dashboard</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f9;
-        }
-        #dashboard {
-            text-align: center;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        #historyModal {
-            display: none;
-            position: fixed;
-            z-index: 1;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.5);
-        }
-        .modal-content {
-            background-color: #fff;
-            margin: 10% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 90%;
-            max-width: 800px;
-            border-radius: 8px;
-        }
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .close:hover, .close:focus {
-            color: #000;
-            text-decoration: none;
-        }
-        #chartContainer {
-            width: 100%;
-            height: 400px;
-            margin-top: 20px;
-        }
-        #error {
-            color: #d32f2f;
-            margin: 10px 0;
-            font-weight: bold;
-        }
-        button {
-            padding: 10px 20px;
-            margin: 5px;
-            background-color: #007bff;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        input, label {
-            margin: 8px 0;
-            display: block;
-        }
-        input[type="text"], input[type="datetime-local"] {
-            padding: 8px;
-            width: 100%;
-            max-width: 300px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        h1, h2 {
-            color: #333;
-        }
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <title>⚡ Smart Energy Pro Dashboard</title>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      background: #0f172a;
+      color: white;
+      font-family: 'Segoe UI';
+      text-align: center;
+    }
+
+    h1 {
+      color: #38bdf8;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 15px;
+      padding: 20px;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 0 10px rgba(0,255,255,0.2);
+    }
+
+    .value {
+      font-size: 22px;
+      color: #22c55e;
+    }
+
+    .alert {
+      color: red;
+      font-weight: bold;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      border: none;
+      border-radius: 10px;
+      background: #22c55e;
+      color: white;
+      cursor: pointer;
+    }
+
+    input {
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+    }
+
+    canvas {
+      max-width: 90%;
+      margin-top: 20px;
+    }
+
+    table {
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 8px;
+    }
+  </style>
 </head>
+
 <body>
-    <div id="dashboard">
-        <h1>Compressor Dashboard</h1>
-        <p>View and download data from Google Sheet via Apps Script (ID: AKfycbyejsErrNdce7tbi5K0da24BEjD1YJW1ciaIovDqdpOqNdBDFDlNUD91dArsF_AN0pY).</p>
-        <button onclick="openModal()">View History</button>
-    </div>
 
-    <div id="historyModal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h2>View History</h2>
-            <label for="sheetName">Sheet Name:</label>
-            <input type="text" id="sheetName" value="New_Compressor">
-            <label for="startDateTime">Start Date & Time:</label>
-            <input type="datetime-local" id="startDateTime">
-            <label for="endDateTime">End Date & Time:</label>
-            <input type="datetime-local" id="endDateTime">
-            <button onclick="viewData()">View</button>
-            <button onclick="downloadData()">Download CSV</button>
-            <div id="error"></div>
-            <div id="chartContainer">
-                <canvas id="lineChart"></canvas>
-            </div>
-        </div>
-    </div>
+<h1>⚡ Smart Energy Pro Dashboard</h1>
 
-    <script>
-        const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbyejsErrNdce7tbi5K0da24BEjD1YJW1ciaIovDqdpOqNdBDFDlNUD91dArsF_AN0pY/exec';
+<div class="container">
+  <div class="card">Voltage<br><span id="voltage" class="value"></span> V</div>
+  <div class="card">Current<br><span id="current" class="value"></span> A</div>
+  <div class="card">Power<br><span id="power" class="value"></span> W</div>
+  <div class="card">Energy<br><span id="energy" class="value"></span> kWh</div>
+  <div class="card">Limit<br><span id="limit" class="value"></span> kWh</div>
+  <div class="card">Bill<br><span id="bill" class="value"></span> PKR</div>
+  <div class="card">Alert<br><span id="alert"></span></div>
+</div>
 
-        function openModal() {
-            document.getElementById('historyModal').style.display = 'block';
-            document.getElementById('error').innerText = '';
-        }
+<br>
 
-        function closeModal() {
-            document.getElementById('historyModal').style.display = 'none';
-            document.getElementById('error').innerText = '';
-            if (window.myChart) window.myChart.destroy();
-        }
+<input type="number" id="newLimit" placeholder="Set kWh Limit">
+<button onclick="setLimit()">Set Limit</button>
+<button onclick="resetEnergy()">Reset</button>
 
-        async function fetchSheetData(sheetName, start, end) {
-            try {
-                let url = `${appsScriptUrl}?sheetName=${encodeURIComponent(sheetName)}`;
-                if (start) url += `&start=${encodeURIComponent(start.toISOString())}`;
-                if (end) url += `&end=${encodeURIComponent(end.toISOString())}`;
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch data: HTTP ${response.status}. Ensure the Apps Script is deployed and accessible.`);
-                }
-                const data = await response.json();
-                if (!data || !Array.isArray(data) || data.length <= 1) {
-                    throw new Error('No data found in the sheet or sheet is empty.');
-                }
-                return data;
-            } catch (error) {
-                document.getElementById('error').innerText = error.message;
-                console.error('Fetch error:', error);
-                return [];
-            }
-        }
+<canvas id="chart"></canvas>
 
-        function filterDataByDate(data, start, end) {
-            return data.filter(row => {
-                const dateStr = row[0];
-                if (!dateStr) return false;
-                const rowDate = new Date(dateStr);
-                if (isNaN(rowDate)) return false; // Skip invalid dates
-                return (!start || rowDate >= start) && (!end || rowDate <= end);
-            });
-        }
+<h3 id="daily"></h3>
 
-        async function viewData() {
-            const sheetName = document.getElementById('sheetName').value.trim();
-            const startInput = document.getElementById('startDateTime').value;
-            const endInput = document.getElementById('endDateTime').value;
-            const start = startInput ? new Date(startInput) : null;
-            const end = endInput ? new Date(endInput) : null;
+<!-- 🔥 HISTORY SECTION -->
+<h2>📊 History Data</h2>
 
-            if (!sheetName) {
-                document.getElementById('error').innerText = 'Please enter a valid sheet name.';
-                return;
-            }
+<button onclick="loadHistory()">Load Last 50</button>
 
-            document.getElementById('error').innerText = 'Fetching data...';
-            const data = await fetchSheetData(sheetName, start, end);
-            if (data.length === 0) return;
+<div style="max-height:300px; overflow:auto; margin:20px;">
+  <table border="1" width="100%">
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Voltage</th>
+        <th>Current</th>
+        <th>Power</th>
+        <th>Energy</th>
+      </tr>
+    </thead>
+    <tbody id="historyTable"></tbody>
+  </table>
+</div>
 
-            const headers = data[0];
-            const filteredData = filterDataByDate(data.slice(1), start, end);
+<script>
 
-            if (filteredData.length === 0) {
-                document.getElementById('error').innerText = 'No data found for the selected date range.';
-                return;
-            }
+// Firebase config
+var firebaseConfig = {
+  apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
+  databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/"
+};
 
-            const labels = filteredData.map(row => row[0]);
-            const voltage = filteredData.map(row => parseFloat(row[1]) || 0);
-            const current = filteredData.map(row => parseFloat(row[8]) || 0);
-            const energy = filteredData.map(row => parseFloat(row[16]) || 0);
+firebase.initializeApp(firebaseConfig);
 
-            const ctx = document.getElementById('lineChart').getContext('2d');
-            if (window.myChart) window.myChart.destroy();
-            window.myChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: 'Average Voltage', data: voltage, borderColor: '#1e90ff', fill: false, tension: 0.1 },
-                        { label: 'Average Current', data: current, borderColor: '#32cd32', fill: false, tension: 0.1 },
-                        { label: 'Energy (kWh)', data: energy, borderColor: '#ff4500', fill: false, tension: 0.1 }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: { unit: 'minute', displayFormats: { minute: 'yyyy-MM-dd HH:mm' } },
-                            title: { display: true, text: 'Date & Time' }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            title: { display: true, text: 'Values' }
-                        }
-                    },
-                    plugins: {
-                        legend: { position: 'top' },
-                        tooltip: { mode: 'index', intersect: false }
-                    }
-                }
-            });
-            document.getElementById('error').innerText = '';
-        }
+var db = firebase.database().ref("smart_home4");
 
-        async function downloadData() {
-            const sheetName = document.getElementById('sheetName').value.trim();
-            const startInput = document.getElementById('startDateTime').value;
-            const endInput = document.getElementById('endDateTime').value;
-            const start = startInput ? new Date(startInput) : null;
-            const end = endInput ? new Date(endInput) : null;
+// Chart
+var ctx = document.getElementById('chart').getContext('2d');
 
-            if (!sheetName) {
-                document.getElementById('error').innerText = 'Please enter a valid sheet name.';
-                return;
-            }
+var chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      { label: 'Voltage', data: [], borderWidth: 2 },
+      { label: 'Current', data: [], borderWidth: 2 },
+      { label: 'Power', data: [], borderWidth: 2 }
+    ]
+  }
+});
 
-            document.getElementById('error').innerText = 'Preparing download...';
-            const data = await fetchSheetData(sheetName, start, end);
-            if (data.length === 0) return;
+// LIVE DATA
+db.on("value", function(snapshot) {
+  var d = snapshot.val();
 
-            const filteredData = filterDataByDate(data.slice(1), start, end);
-            if (filteredData.length === 0) {
-                document.getElementById('error').innerText = 'No data to download for the selected date range.';
-                return;
-            }
+  document.getElementById("voltage").innerText = d.voltage?.toFixed(2);
+  document.getElementById("current").innerText = d.current?.toFixed(2);
+  document.getElementById("power").innerText = d.power?.toFixed(2);
+  document.getElementById("energy").innerText = d.energy?.toFixed(2);
+  document.getElementById("limit").innerText = d.energyLimit?.toFixed(2);
 
-            const csvContent = [
-                'Date & Time,Average Voltage,Average Current,Energy (kWh)',
-                ...filteredData.map(row => [row[0], row[1], row[8], row[16]].map(val => `"${val || ''}"`).join(','))
-            ].join('\n');
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `${sheetName}_data.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            document.getElementById('error').innerText = '';
-        }
-    </script>
+  // BILL
+  var unitRate = 60;
+  var bill = d.energy * unitRate;
+  document.getElementById("bill").innerText = bill.toFixed(0);
+
+  // ALERT
+  if (d.alert) {
+    document.getElementById("alert").innerText = "⚠️ LIMIT!";
+    document.getElementById("alert").className = "alert";
+  } else {
+    document.getElementById("alert").innerText = "Normal";
+  }
+
+  // GRAPH
+  var time = new Date().toLocaleTimeString();
+
+  chart.data.labels.push(time);
+  chart.data.datasets[0].data.push(d.voltage);
+  chart.data.datasets[1].data.push(d.current);
+  chart.data.datasets[2].data.push(d.power);
+
+  if (chart.data.labels.length > 15) {
+    chart.data.labels.shift();
+    chart.data.datasets.forEach(ds => ds.data.shift());
+  }
+
+  chart.update();
+});
+
+// SET LIMIT
+function setLimit() {
+  var val = document.getElementById("newLimit").value;
+  firebase.database().ref("smart_home4/energy_limit").set(Number(val));
+}
+
+// RESET
+function resetEnergy() {
+  firebase.database().ref("smart_home4/reset_command").set(1);
+}
+
+// DAILY ENERGY
+firebase.database().ref("history").once("value", function(snapshot){
+  var data = snapshot.val();
+  var total = 0;
+
+  Object.values(data || {}).forEach(item => {
+    total += item.energy || 0;
+  });
+
+  document.getElementById("daily").innerText =
+    "📊 Total Stored Energy: " + total.toFixed(2) + " kWh";
+});
+
+// HISTORY LOAD
+function loadHistory() {
+
+  firebase.database().ref("history")
+    .limitToLast(50)
+    .once("value", function(snapshot) {
+
+      var data = snapshot.val();
+      var table = document.getElementById("historyTable");
+
+      table.innerHTML = "";
+
+      var labels = [];
+      var powerData = [];
+
+      Object.keys(data).forEach(function(key) {
+
+        var item = data[key];
+        var time = new Date(key * 1000).toLocaleString();
+
+        var row = `
+          <tr>
+            <td>${time}</td>
+            <td>${item.voltage?.toFixed(1)}</td>
+            <td>${item.current?.toFixed(2)}</td>
+            <td>${item.power?.toFixed(1)}</td>
+            <td>${item.energy?.toFixed(2)}</td>
+          </tr>
+        `;
+
+        table.innerHTML += row;
+
+        labels.push(time);
+        powerData.push(item.power);
+      });
+
+      chart.data.labels = labels;
+      chart.data.datasets[2].data = powerData;
+      chart.update();
+    });
+}
+
+</script>
+
 </body>
 </html>
