@@ -210,7 +210,7 @@ firebase.database().ref("history").once("value", function(snapshot){
 // HISTORY LOAD
 function loadHistory() {
 
-  firebase.database().ref("history")
+  firebase.database().ref("history4")
     .limitToLast(50)
     .once("value", function(snapshot) {
 
