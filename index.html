@@ -207,7 +207,7 @@ function initializeDashboard() {
     document.getElementById("limit").innerText = d.energyLimit?.toFixed(2) || "0.00";
 
     // BILL
-    var unitRate = 60;
+    var unitRate = 25;
     var bill = (d.energy || 0) * unitRate;
     document.getElementById("bill").innerText = bill.toFixed(0);
 
