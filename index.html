@@ -153,7 +153,7 @@ function resetEnergy() {
   firebase.database().ref("smart_home1/reset_command").set(1);
 }
 
-// DOWNLOAD WITH DATE FILTER
+// DOWNLOAD CSV (FIXED FOR MOBILE)
 function downloadFiltered() {
 
   let from = document.getElementById("fromDate").value;
@@ -175,6 +175,8 @@ function downloadFiltered() {
 
       let data = snap.val();
 
+      console.log("DATA:", data); // DEBUG
+
       if (!data) {
         alert("No Data Found!");
         return;
@@ -190,16 +192,26 @@ function downloadFiltered() {
         csv += `${time},${v.voltage || 0},${v.current || 0},${v.power || 0},${v.energy || 0}\n`;
       });
 
-      let blob = new Blob([csv], { type: 'text/csv' });
-      let url = window.URL.createObjectURL(blob);
+      let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
 
-      let a = document.createElement("a");
-      a.href = url;
-      a.download = "filtered_history.csv";
-      a.click();
+      let link = document.createElement("a");
 
-      window.URL.revokeObjectURL(url);
+      if (navigator.msSaveBlob) {
+        navigator.msSaveBlob(blob, "filtered_history.csv");
+      } else {
+        let url = URL.createObjectURL(blob);
+        link.href = url;
+        link.setAttribute("download", "filtered_history.csv");
 
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Error downloading data");
     });
 }
 
@@ -207,3 +219,4 @@ function downloadFiltered() {
 
 </body>
 </html>
+```
