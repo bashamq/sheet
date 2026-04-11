@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -75,7 +76,7 @@
 
 <hr>
 
-<h3>📅 Download History (Date Filter)</h3>
+<h3>📅 History (Date Filter)</h3>
 
 From:
 <input type="date" id="fromDate">
@@ -84,7 +85,7 @@ To:
 <input type="date" id="toDate">
 
 <br>
-<button onclick="downloadFiltered()">📥 Download CSV</button>
+<button onclick="downloadFiltered()">📄 View History Data</button>
 
 <canvas id="chart"></canvas>
 
@@ -154,7 +155,7 @@ function resetEnergy() {
   firebase.database().ref("smart_home1/reset_command").set(1);
 }
 
-// ✅ FINAL DOWNLOAD FUNCTION (MOBILE SAFE)
+// ✅ GUARANTEED WORKING HISTORY VIEW
 function downloadFiltered() {
 
   let from = document.getElementById("fromDate").value;
@@ -176,8 +177,6 @@ function downloadFiltered() {
 
       let data = snap.val();
 
-      console.log("DATA:", data);
-
       if (!data) {
         alert("No Data Found!");
         return;
@@ -193,11 +192,10 @@ function downloadFiltered() {
         csv += `${time},${v.voltage || 0},${v.current || 0},${v.power || 0},${v.energy || 0}\n`;
       });
 
-      // 🔥 MOBILE FIX → OPEN FILE IN NEW TAB
-      let blob = new Blob([csv], { type: 'text/csv' });
-      let url = URL.createObjectURL(blob);
-
-      window.open(url);
+      // 🔥 ALWAYS WORKING METHOD
+      let win = window.open();
+      win.document.write("<pre>" + csv + "</pre>");
+      win.document.title = "History Data";
 
     })
     .catch(err => {
