@@ -90,6 +90,7 @@ To:
 
 <script>
 
+// Firebase Init
 firebase.initializeApp({
   apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
   databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/"
@@ -153,7 +154,7 @@ function resetEnergy() {
   firebase.database().ref("smart_home1/reset_command").set(1);
 }
 
-// DOWNLOAD CSV (FIXED FOR MOBILE)
+// ✅ FINAL DOWNLOAD FUNCTION (MOBILE SAFE)
 function downloadFiltered() {
 
   let from = document.getElementById("fromDate").value;
@@ -175,7 +176,7 @@ function downloadFiltered() {
 
       let data = snap.val();
 
-      console.log("DATA:", data); // DEBUG
+      console.log("DATA:", data);
 
       if (!data) {
         alert("No Data Found!");
@@ -192,26 +193,16 @@ function downloadFiltered() {
         csv += `${time},${v.voltage || 0},${v.current || 0},${v.power || 0},${v.energy || 0}\n`;
       });
 
-      let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      // 🔥 MOBILE FIX → OPEN FILE IN NEW TAB
+      let blob = new Blob([csv], { type: 'text/csv' });
+      let url = URL.createObjectURL(blob);
 
-      let link = document.createElement("a");
-
-      if (navigator.msSaveBlob) {
-        navigator.msSaveBlob(blob, "filtered_history.csv");
-      } else {
-        let url = URL.createObjectURL(blob);
-        link.href = url;
-        link.setAttribute("download", "filtered_history.csv");
-
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      window.open(url);
 
     })
     .catch(err => {
       console.error(err);
-      alert("Error downloading data");
+      alert("Error loading data");
     });
 }
 
