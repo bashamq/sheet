@@ -33,12 +33,19 @@
 
     button {
       padding: 10px 20px;
-      margin: 10px;
+      margin: 8px;
       border: none;
       border-radius: 8px;
       background: #22c55e;
       color: white;
       cursor: pointer;
+    }
+
+    input {
+      padding: 8px;
+      border-radius: 6px;
+      border: none;
+      margin: 5px;
     }
 
     .alert {
@@ -62,11 +69,22 @@
   <div class="card">Alert<br><span id="alert"></span></div>
 </div>
 
-<input type="number" id="newLimit" placeholder="Set kWh Limit">
-<br>
+<input type="number" id="newLimit" placeholder="Set kWh Limit"><br>
 <button onclick="setLimit()">Set Limit</button>
 <button onclick="resetEnergy()">Reset</button>
-<button onclick="openHistory()">View History (50 Days)</button>
+
+<hr>
+
+<h3>📅 Download History (Date Filter)</h3>
+
+From:
+<input type="date" id="fromDate">
+
+To:
+<input type="date" id="toDate">
+
+<br>
+<button onclick="downloadFiltered()">📥 Download CSV</button>
 
 <canvas id="chart"></canvas>
 
@@ -135,13 +153,57 @@ function resetEnergy() {
   firebase.database().ref("smart_home1/reset_command").set(1);
 }
 
-// Open History Page
-function openHistory() {
-  window.open("history.html", "_blank");
+// DOWNLOAD WITH DATE FILTER
+function downloadFiltered() {
+
+  let from = document.getElementById("fromDate").value;
+  let to = document.getElementById("toDate").value;
+
+  if (!from || !to) {
+    alert("Select both dates!");
+    return;
+  }
+
+  let fromTs = Math.floor(new Date(from).getTime() / 1000);
+  let toTs = Math.floor(new Date(to).getTime() / 1000) + 86400;
+
+  firebase.database().ref("history1")
+    .orderByKey()
+    .startAt(fromTs)
+    .endAt(toTs)
+    .once("value", snap => {
+
+      let data = snap.val();
+
+      if (!data) {
+        alert("No Data Found!");
+        return;
+      }
+
+      let csv = "Time,Voltage,Current,Power,Energy\n";
+
+      let arr = Object.entries(data).sort((a,b)=>b[0]-a[0]);
+
+      arr.forEach(([k,v]) => {
+        let time = new Date(k * 1000).toLocaleString();
+
+        csv += `${time},${v.voltage || 0},${v.current || 0},${v.power || 0},${v.energy || 0}\n`;
+      });
+
+      let blob = new Blob([csv], { type: 'text/csv' });
+      let url = window.URL.createObjectURL(blob);
+
+      let a = document.createElement("a");
+      a.href = url;
+      a.download = "filtered_history.csv";
+      a.click();
+
+      window.URL.revokeObjectURL(url);
+
+    });
 }
 
 </script>
 
 </body>
 </html>
-```
