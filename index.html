@@ -236,7 +236,7 @@ function initializeDashboard() {
   // HISTORY LOAD      
   window.loadHistory = function() {      
     firebase.database().ref("history1")      
-      .limitToLast(720)      
+      .limitToLast(220)      
       .once("value", function(snapshot) {      
         var data = snapshot.val();      
         var table = document.getElementById("historyTable");      
