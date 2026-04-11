@@ -1,274 +1,265 @@
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <title>⚡ Smart Energy Pro Dashboard</title>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <style>
-    body {
-      background: #0f172a;
-      color: white;
-      font-family: 'Segoe UI';
-      text-align: center;
-      margin: 0;
-      padding: 0;
-    }
-
-    h1 { color: #38bdf8; }
-
-    .container {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 15px;
-      padding: 20px;
-    }
-
-    .card {
-      background: #1e293b;
-      padding: 20px;
-      border-radius: 15px;
-      box-shadow: 0 0 10px rgba(0,255,255,0.2);
-    }
-
-    .value { font-size: 22px; color: #22c55e; }
-    .alert { color: red; font-weight: bold; }
-
-    button {
-      padding: 10px 20px;
-      margin: 10px;
-      border: none;
-      border-radius: 10px;
-      background: #22c55e;
-      color: white;
-      cursor: pointer;
-    }
-
-    input {
-      padding: 12px;
-      border-radius: 8px;
-      border: none;
-      width: 250px;
-      font-size: 16px;
-    }
-
-    canvas {
-      max-width: 90%;
-      margin-top: 20px;
-    }
-
-    table {
-      border-collapse: collapse;
-    }
-
-    th, td {
-      padding: 8px;
-      border: 1px solid #334155;
-    }
-
-    #loginScreen {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: #0f172a;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-
-    .login-box {
-      background: #1e293b;
-      padding: 40px 30px;
-      border-radius: 15px;
-      box-shadow: 0 0 20px rgba(0,255,255,0.3);
-      text-align: center;
-      max-width: 350px;
-      width: 90%;
-    }
-
-    #errorMsg { color: red; margin-top: 10px; font-weight: bold; }
-  </style>
-</head>
-
-<body>
-
-<!-- LOGIN -->
-<div id="loginScreen">
-  <div class="login-box">
-    <h2>🔐 Protected Dashboard</h2>
-    <input type="password" id="passwordInput" placeholder="Enter Password" onkeypress="if(event.key === 'Enter') checkPassword()">
-    <br><br>
-    <button onclick="checkPassword()">Login</button>
-    <div id="errorMsg"></div>
-  </div>
-</div>
-
-<!-- DASHBOARD -->
-<div id="dashboard" style="display:none;">
-  <h1>⚡ Smart Energy Pro Dashboard</h1>
-
-  <div class="container">
-    <div class="card">Voltage<br><span id="voltage" class="value"></span> V</div>
-    <div class="card">Current<br><span id="current" class="value"></span> A</div>
-    <div class="card">Power<br><span id="power" class="value"></span> W</div>
-    <div class="card">Energy<br><span id="energy" class="value"></span> kWh</div>
-    <div class="card">Limit<br><span id="limit" class="value"></span> kWh</div>
-    <div class="card">Bill<br><span id="bill" class="value"></span> PKR</div>
-    <div class="card">Alert<br><span id="alert"></span></div>
-  </div>
-
-  <input type="number" id="newLimit" placeholder="Set kWh Limit">
-  <button onclick="setLimit()">Set Limit</button>
-  <button onclick="resetEnergy()">Reset</button>
-
-  <canvas id="chart"></canvas>
-
-  <h2>📊 History Data</h2>
-  <button onclick="loadHistory()">Load Last 50 Days</button>
-
-  <div style="max-height:300px; overflow:auto; margin:20px;">
-    <table width="100%">
-      <thead>
-        <tr>
-          <th>Time</th>
-          <th>Voltage</th>
-          <th>Current</th>
-          <th>Power</th>
-          <th>Energy</th>
-        </tr>
-      </thead>
-      <tbody id="historyTable"></tbody>
-    </table>
-  </div>
-</div>
-
-<script>
-
-const PASSWORD = "123";
-
-function checkPassword() {
-  const val = document.getElementById("passwordInput").value;
-  if (val === PASSWORD) {
-    document.getElementById("loginScreen").style.display = "none";
-    document.getElementById("dashboard").style.display = "block";
-    init();
-  } else {
-    document.getElementById("errorMsg").innerText = "Wrong Password";
-  }
-}
-
-var db, chart;
-
-function init() {
-
-  firebase.initializeApp({
-    apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",
-    databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/"
-  });
-
-  db = firebase.database().ref("smart_home1");
-
-  // Chart
-  chart = new Chart(document.getElementById("chart"), {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [
-        { label: 'Voltage', data: [], borderColor: '#38bdf8' },
-        { label: 'Current', data: [], borderColor: '#22c55e' },
-        { label: 'Power', data: [], borderColor: '#eab308' }
-      ]
-    }
-  });
-
-  // LIVE DATA
-  db.on("value", snap => {
-    let d = snap.val();
-    if (!d) return;
-
-    voltage.innerText = d.voltage?.toFixed(1);
-    current.innerText = d.current?.toFixed(2);
-    power.innerText = d.power?.toFixed(1);
-    energy.innerText = d.energy?.toFixed(3);
-    limit.innerText = d.energyLimit || 0;
-
-    let bill = (d.energy || 0) * 25;
-    document.getElementById("bill").innerText = bill.toFixed(0);
-
-    alert.innerText = d.alert ? "⚠️ LIMIT!" : "Normal";
-    alert.className = d.alert ? "alert" : "";
-
-    let time = new Date().toLocaleTimeString();
-    chart.data.labels.push(time);
-    chart.data.datasets[0].data.push(d.voltage || 0);
-    chart.data.datasets[1].data.push(d.current || 0);
-    chart.data.datasets[2].data.push(d.power || 0);
-
-    if (chart.data.labels.length > 15) {
-      chart.data.labels.shift();
-      chart.data.datasets.forEach(ds => ds.data.shift());
-    }
-
-    chart.update();
-  });
-
-}
-
-// SET LIMIT
-function setLimit() {
-  let val = document.getElementById("newLimit").value;
-  if (val) firebase.database().ref("smart_home1/energy_limit").set(Number(val));
-}
-
-// RESET
-function resetEnergy() {
-  firebase.database().ref("smart_home1/reset_command").set(1);
-}
-
-// HISTORY (50 DAYS)
-function loadHistory() {
-
-  let now = Math.floor(Date.now() / 1000);
-  let last50 = now - (50 * 24 * 60 * 60);
-
-  firebase.database().ref("history1")
-    .orderByKey()
-    .startAt(last50.toString())
-    .once("value", snap => {
-
-      let data = snap.val();
-      let table = document.getElementById("historyTable");
-      table.innerHTML = "";
-
-      if (!data) {
-        table.innerHTML = "<tr><td colspan='5'>No Data</td></tr>";
-        return;
-      }
-
-      let arr = Object.entries(data).sort((a,b)=>b[0]-a[0]);
-
-      arr.forEach(([k,v]) => {
-        let time = new Date(k*1000).toLocaleString();
-
-        table.innerHTML += `
-          <tr>
-            <td>${time}</td>
-            <td>${v.voltage?.toFixed(1)}</td>
-            <td>${v.current?.toFixed(2)}</td>
-            <td>${v.power?.toFixed(1)}</td>
-            <td>${v.energy?.toFixed(3)}</td>
-          </tr>
-        `;
-      });
-
-    });
-}
-
-document.getElementById("passwordInput").focus();
-
-</script>
-
-</body>
+<!DOCTYPE html>      
+<html>      
+<head>      
+  <title>⚡ Smart Energy Pro Dashboard</title>      
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase.js"></script>      
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>      
+  <style>      
+    body {      
+      background: #0f172a;      
+      color: white;      
+      font-family: 'Segoe UI';      
+      text-align: center;      
+      margin: 0;      
+      padding: 0;      
+    }      
+    h1 {      
+      color: #38bdf8;      
+    }      
+    .container {      
+      display: grid;      
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));      
+      gap: 15px;      
+      padding: 20px;      
+    }      
+    .card {      
+      background: #1e293b;      
+      padding: 20px;      
+      border-radius: 15px;      
+      box-shadow: 0 0 10px rgba(0,255,255,0.2);      
+    }      
+    .value {      
+      font-size: 22px;      
+      color: #22c55e;      
+    }      
+    .alert {      
+      color: red;      
+      font-weight: bold;      
+    }      
+    button {      
+      padding: 10px 20px;      
+      margin: 10px;      
+      border: none;      
+      border-radius: 10px;      
+      background: #22c55e;      
+      color: white;      
+      cursor: pointer;      
+    }      
+    input {      
+      padding: 12px;      
+      border-radius: 8px;      
+      border: none;      
+      width: 250px;      
+      font-size: 16px;      
+    }      
+    canvas {      
+      max-width: 90%;      
+      margin-top: 20px;      
+    }      
+    table {      
+      border-collapse: collapse;      
+    }      
+    th, td {      
+      padding: 8px;      
+      border: 1px solid #334155;      
+    }      
+    /* Login Screen */      
+    #loginScreen {      
+      position: fixed;      
+      top: 0; left: 0; right: 0; bottom: 0;      
+      background: #0f172a;      
+      display: flex;      
+      align-items: center;      
+      justify-content: center;      
+      z-index: 1000;      
+    }      
+    .login-box {      
+      background: #1e293b;      
+      padding: 40px 30px;      
+      border-radius: 15px;      
+      box-shadow: 0 0 20px rgba(0,255,255,0.3);      
+      text-align: center;      
+      max-width: 350px;      
+      width: 90%;      
+    }      
+    .login-box h2 {      
+      color: #38bdf8;      
+      margin-bottom: 25px;      
+    }      
+    #errorMsg {      
+      color: red;      
+      margin-top: 10px;      
+      font-weight: bold;      
+    }      
+  </style>      
+</head>      
+<body>      
+  <!-- LOGIN SCREEN -->      
+  <div id="loginScreen">      
+    <div class="login-box">      
+      <h2>🔐 Protected Dashboard</h2>      
+      <p>Enter Password to Access</p>      
+      <input type="password" id="passwordInput" placeholder="Enter Password" onkeypress="if(event.key === 'Enter') checkPassword()">      
+      <br><br>      
+      <button onclick="checkPassword()">Login</button>      
+      <div id="errorMsg"></div>      
+    </div>      
+  </div>      
+  <!-- MAIN DASHBOARD (hidden initially) -->      
+  <div id="dashboard" style="display: none;">      
+    <h1>⚡ Smart Energy Pro Dashboard</h1>      
+    <div class="container">      
+      <div class="card">Voltage<br><span id="voltage" class="value"></span> V</div>      
+      <div class="card">Current<br><span id="current" class="value"></span> A</div>      
+      <div class="card">Power<br><span id="power" class="value"></span> W</div>      
+      <div class="card">Energy<br><span id="energy" class="value"></span> kWh</div>      
+      <div class="card">Limit<br><span id="limit" class="value"></span> kWh</div>      
+      <div class="card">Bill<br><span id="bill" class="value"></span> PKR</div>      
+      <div class="card">Alert<br><span id="alert"></span></div>      
+    </div>      
+    <br>      
+    <input type="number" id="newLimit" placeholder="Set kWh Limit">      
+    <button onclick="setLimit()">Set Limit</button>      
+    <button onclick="resetEnergy()">Reset</button>      
+    <canvas id="chart"></canvas>      
+    <h3 id="daily"></h3>      
+    <!-- HISTORY SECTION -->      
+    <h2>📊 History Data</h2>      
+    <button onclick="loadHistory()">Load Last 50</button>      
+    <div style="max-height:300px; overflow:auto; margin:20px;">      
+      <table border="1" width="100%">      
+        <thead>      
+          <tr>      
+            <th>Time</th>      
+            <th>Voltage</th>      
+            <th>Current</th>      
+            <th>Power</th>      
+            <th>Energy</th>      
+          </tr>      
+        </thead>      
+        <tbody id="historyTable"></tbody>      
+      </table>      
+    </div>      
+  </div>      
+<script>      
+// ==================== PASSWORD PROTECTION ====================      
+const CORRECT_PASSWORD = "123"; // ← CHANGE THIS TO YOUR DESIRED PASSWORD      
+function checkPassword() {      
+  const input = document.getElementById("passwordInput").value;      
+  const errorMsg = document.getElementById("errorMsg");      
+  if (input === CORRECT_PASSWORD) {      
+    document.getElementById("loginScreen").style.display = "none";      
+    document.getElementById("dashboard").style.display = "block";      
+    initializeDashboard(); // Start loading Firebase data      
+  } else {      
+    errorMsg.innerText = "❌ Incorrect Password!";      
+    document.getElementById("passwordInput").value = "";      
+    document.getElementById("passwordInput").focus();      
+  }      
+}      
+// ==================== DASHBOARD CODE ====================      
+var db, chart;      
+function initializeDashboard() {      
+  // Firebase config      
+  var firebaseConfig = {      
+    apiKey: "dq08PQL2JHCpD13e9295WjatZXFnQOZLCH7Ez4aO",      
+    databaseURL: "https://esp-983b0-default-rtdb.firebaseio.com/"      
+  };      
+  firebase.initializeApp(firebaseConfig);      
+  db = firebase.database().ref("smart_home1");      
+  // Chart      
+  var ctx = document.getElementById('chart').getContext('2d');      
+  chart = new Chart(ctx, {      
+    type: 'line',      
+    data: {      
+      labels: [],      
+      datasets: [      
+        { label: 'Voltage', data: [], borderColor: '#38bdf8', borderWidth: 2 },      
+        { label: 'Current', data: [], borderColor: '#22c55e', borderWidth: 2 },      
+        { label: 'Power', data: [], borderColor: '#eab308', borderWidth: 2 }      
+      ]      
+    },      
+    options: {      
+      responsive: true,      
+      scales: { y: { beginAtZero: true } }      
+    }      
+  });      
+  // LIVE DATA      
+  db.on("value", function(snapshot) {      
+    var d = snapshot.val();      
+    if (!d) return;      
+    document.getElementById("voltage").innerText = d.voltage?.toFixed(2) || "0.00";      
+    document.getElementById("current").innerText = d.current?.toFixed(2) || "0.00";      
+    document.getElementById("power").innerText = d.power?.toFixed(2) || "0.00";      
+    document.getElementById("energy").innerText = d.energy?.toFixed(2) || "0.00";      
+    document.getElementById("limit").innerText = d.energyLimit?.toFixed(2) || "0.00";      
+    // BILL      
+    var unitRate = 25;      
+    var bill = (d.energy || 0) * unitRate;      
+    document.getElementById("bill").innerText = bill.toFixed(0);      
+    // ALERT      
+    if (d.alert) {      
+      document.getElementById("alert").innerText = "⚠️ LIMIT EXCEEDED!";      
+      document.getElementById("alert").className = "alert";      
+    } else {      
+      document.getElementById("alert").innerText = "Normal";      
+      document.getElementById("alert").className = "";      
+    }      
+    // GRAPH      
+    var time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});      
+    chart.data.labels.push(time);      
+    chart.data.datasets[0].data.push(d.voltage || 0);      
+    chart.data.datasets[1].data.push(d.current || 0);      
+    chart.data.datasets[2].data.push(d.power || 0);      
+    if (chart.data.labels.length > 15) {      
+      chart.data.labels.shift();      
+      chart.data.datasets.forEach(ds => ds.data.shift());      
+    }      
+    chart.update();      
+  });      
+  // SET LIMIT      
+  window.setLimit = function() {      
+    var val = document.getElementById("newLimit").value;      
+    if (val) firebase.database().ref("smart_home1/energy_limit").set(Number(val));      
+  };      
+  // RESET      
+  window.resetEnergy = function() {      
+    firebase.database().ref("smart_home1/reset_command").set(1);      
+  };      
+  // DAILY ENERGY (optional)      
+  firebase.database().ref("history").once("value", function(snapshot){      
+    var data = snapshot.val();      
+    var total = 0;      
+    Object.values(data || {}).forEach(item => total += item.energy || 0);      
+    document.getElementById("daily").innerText = "📊 Total Stored Energy: " + total.toFixed(2) + " kWh";      
+  });      
+  // HISTORY LOAD      
+  window.loadHistory = function() {      
+    firebase.database().ref("history1")      
+      .limitToLast(50)      
+      .once("value", function(snapshot) {      
+        var data = snapshot.val();      
+        var table = document.getElementById("historyTable");      
+        table.innerHTML = "";      
+        Object.keys(data || {}).forEach(function(key) {      
+          var item = data[key];      
+          var time = new Date(key * 1000).toLocaleString();      
+          var row = `      
+            <tr>      
+              <td>${time}</td>      
+              <td>${item.voltage?.toFixed(1) || '—'}</td>      
+              <td>${item.current?.toFixed(2) || '—'}</td>      
+              <td>${item.power?.toFixed(1) || '—'}</td>      
+              <td>${item.energy?.toFixed(2) || '—'}</td>      
+            </tr>      
+          `;      
+          table.innerHTML += row;      
+        });      
+      });      
+  };      
+}      
+// Allow pressing Enter in password field      
+document.getElementById("passwordInput").focus();      
+</script>      
+</body>      
 </html>
-```
